@@ -17,6 +17,7 @@ avg_df = df.groupBy("Department").agg(avg("Salary").alias("Avg_Salary"))
 df = df.join(avg_df, on="Department", how="left")
 
 # 3️⃣ Salary Increase %
+
 df = df.withColumn("Salary_Increase", ((col("Salary") - col("Avg_Salary")) / col("Avg_Salary")) * 100)
 
 # 4️⃣ Years with company

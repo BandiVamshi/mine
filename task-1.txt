@@ -1,0 +1,230 @@
+Here’s a step-by-step guide to configure and install Hadoop in Pseudo-Distributed Mode (single-node cluster) — perfect for lab setup, testing, or learning purposes 👇
+
+⚙️ 1. Prerequisites
+
+Before installing Hadoop, ensure you have:
+
+Operating System: Ubuntu / Debian / CentOS / Windows Subsystem for Linux (WSL)
+
+Java (JDK 8 or above)
+Hadoop needs Java to run.
+
+java -version
+
+
+If Java is not installed:
+
+sudo apt update
+sudo apt install openjdk-8-jdk -y
+
+
+Verify:
+
+java -version
+
+
+Example output:
+
+openjdk version "1.8.0_312"
+
+🧩 2. Add Hadoop User
+
+It’s best practice to create a separate user for Hadoop.
+
+sudo adduser hadoop
+sudo usermod -aG sudo hadoop
+su - hadoop
+
+🔑 3. Configure SSH (Passwordless Login)
+
+Hadoop daemons use SSH for communication, even on the same machine.
+
+Generate SSH key:
+
+ssh-keygen -t rsa -P ""
+
+
+Copy key to authorized keys:
+
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+chmod 0600 ~/.ssh/authorized_keys
+
+
+Test SSH:
+
+ssh localhost
+
+
+(If it logs in without password → ✅ success)
+
+📦 4. Download and Extract Hadoop
+
+Go to the official Hadoop website or use wget:
+
+wget https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz
+tar -xzvf hadoop-3.3.6.tar.gz
+mv hadoop-3.3.6 ~/hadoop
+
+🧠 5. Set Environment Variables
+
+Edit the .bashrc file:
+
+nano ~/.bashrc
+
+
+Add these lines at the end:
+
+export HADOOP_HOME=/home/hadoop/hadoop
+export HADOOP_INSTALL=$HADOOP_HOME
+export HADOOP_MAPRED_HOME=$HADOOP_HOME
+export HADOOP_COMMON_HOME=$HADOOP_HOME
+export HADOOP_HDFS_HOME=$HADOOP_HOME
+export YARN_HOME=$HADOOP_HOME
+export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+
+
+Then:
+
+source ~/.bashrc
+
+🛠️ 6. Configure Hadoop Core Files
+
+Edit these configuration files located in $HADOOP_HOME/etc/hadoop/.
+
+a. core-site.xml
+nano $HADOOP_HOME/etc/hadoop/core-site.xml
+
+
+Add:
+
+<configuration>
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://localhost:9000</value>
+  </property>
+</configuration>
+
+b. hdfs-site.xml
+nano $HADOOP_HOME/etc/hadoop/hdfs-site.xml
+
+
+Add:
+
+<configuration>
+  <property>
+    <name>dfs.replication</name>
+    <value>1</value>
+  </property>
+  <property>
+    <name>dfs.namenode.name.dir</name>
+    <value>file:///home/hadoop/hadoopdata/hdfs/namenode</value>
+  </property>
+  <property>
+    <name>dfs.datanode.data.dir</name>
+    <value>file:///home/hadoop/hadoopdata/hdfs/datanode</value>
+  </property>
+</configuration>
+
+c. mapred-site.xml
+cp $HADOOP_HOME/etc/hadoop/mapred-site.xml.template $HADOOP_HOME/etc/hadoop/mapred-site.xml
+nano $HADOOP_HOME/etc/hadoop/mapred-site.xml
+
+
+Add:
+
+<configuration>
+  <property>
+    <name>mapreduce.framework.name</name>
+    <value>yarn</value>
+  </property>
+</configuration>
+
+d. yarn-site.xml
+nano $HADOOP_HOME/etc/hadoop/yarn-site.xml
+
+
+Add:
+
+<configuration>
+  <property>
+    <name>yarn.nodemanager.aux-services</name>
+    <value>mapreduce_shuffle</value>
+  </property>
+</configuration>
+
+🧹 7. Format the HDFS
+
+This prepares the file system before first use.
+
+hdfs namenode -format
+
+🚀 8. Start Hadoop Services
+
+Start NameNode and DataNode:
+
+start-dfs.sh
+
+
+Then start YARN:
+
+start-yarn.sh
+
+✅ 9. Verify Hadoop is Running
+
+Check Java processes:
+
+jps
+
+
+You should see:
+
+NameNode
+DataNode
+ResourceManager
+NodeManager
+SecondaryNameNode
+
+🌐 10. Access Web Interfaces
+
+Open in your browser:
+
+Service	URL
+NameNode (HDFS UI)	http://localhost:9870
+
+ResourceManager (YARN UI)	http://localhost:8088
+🧾 11. Test Hadoop Setup
+
+Create a directory in HDFS:
+
+hdfs dfs -mkdir /user
+hdfs dfs -mkdir /user/hadoop
+hdfs dfs -put $HADOOP_HOME/etc/hadoop/*.xml /user/hadoop
+hdfs dfs -ls /user/hadoop
+
+
+Run a sample MapReduce job:
+
+yarn jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.6.jar wordcount /user/hadoop /output
+
+🧯 12. Stop Hadoop Services
+
+When you’re done:
+
+stop-yarn.sh
+stop-dfs.sh
+
+🎯 Summary
+Step	Description
+1	Install Java
+2	Create Hadoop User
+3	Setup SSH
+4	Download Hadoop
+5	Configure Environment
+6	Edit Core Config Files
+7	Format Namenode
+8	Start HDFS + YARN
+9	Verify and Test
+
+Would you like me to create a lab report format (with aim, procedure, output, and result) for “Installing Hadoop in Pseudo-Distributed Mode”? It’s perfect if you need to submit it as part of your lab work.
