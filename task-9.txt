@@ -31,3 +31,7 @@ dept_salary = rdd.map(lambda x: (x[2], (x[3], 1))) \
 print("Average Salary by Department:", dept_salary.collect())
 
 sc.stop()
+
+
+
+https://colab.research.google.com/drive/1_BnMz_iUenCEn_hD3MVqDKPtNqqENcqQ?usp=sharing
