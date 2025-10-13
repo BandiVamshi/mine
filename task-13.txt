@@ -155,3 +155,37 @@ nx.draw_networkx_labels(G, pos, font_size=12, font_color="black")
 plt.title("Router Network with PageRank Importance", fontsize=14)
 plt.axis("off")
 plt.show()
+
+
+
+
+
+////new simple code 
+!pip install pyspark graphframes networkx matplotlib
+
+from pyspark.sql import SparkSession
+from graphframes import GraphFrame
+import networkx as nx
+import matplotlib.pyplot as plt
+
+# Spark session
+spark = SparkSession.builder.appName("PageRankExample").getOrCreate()
+
+# Vertices and edges
+v = spark.createDataFrame([("A",),("B",),("C",),("D",)], ["id"])
+e = spark.createDataFrame([("A","B"),("B","C"),("C","A"),("A","D")], ["src","dst"])
+
+# GraphFrame and PageRank
+g = GraphFrame(v,e)
+r = g.pageRank(resetProbability=0.15, maxIter=5)
+r.vertices.select("id","pagerank").show()
+
+# --- Simple plotting ---
+G = nx.DiGraph()
+for row in r.vertices.collect(): G.add_node(row['id'], pr=row['pagerank'])
+for row in e.collect(): G.add_edge(row['src'], row['dst'])
+
+nx.draw(G, with_labels=True, node_size=[5000*G.nodes[n]['pr'] for n in G.nodes], node_color="skyblue", arrowsize=20)
+plt.show()
+
+spark.stop()
