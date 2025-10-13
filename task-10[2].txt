@@ -1,0 +1,30 @@
+!pip install pyspark
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, mean
+
+# 1️⃣ Create Spark session
+spark = SparkSession.builder.appName("DBIngestion").getOrCreate()
+
+# 2️⃣ Read data from database (example: MySQL)
+jdbc_url = "jdbc:mysql://localhost:3306/employee_db"
+properties = {"user": "root", "password": "yourpassword", "driver": "com.mysql.cj.jdbc.Driver"}
+
+df = spark.read.jdbc(url=jdbc_url, table="employee_data", properties=properties)
+
+# 3️⃣ Get DataFrame details
+df.printSchema()
+df.show(5)
+print("Total Rows:", df.count())
+
+# 4️⃣ Check for missing values
+df.select([col(c).isNull().alias(c) for c in df.columns]).show()
+
+# 5️⃣ Replace missing values (example: replace null in 'Salary' with mean)
+mean_val = df.select(mean(col("Salary"))).collect()[0][0]
+df_filled = df.na.fill({"Salary": mean_val})
+
+# 6️⃣ Save the cleaned data back to database
+df_filled.write.jdbc(url=jdbc_url, table="employee_data_cleaned", mode="overwrite", properties=properties)
+
+spark.stop()

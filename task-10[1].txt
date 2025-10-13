@@ -1,0 +1,35 @@
+!pip install pyspark
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import avg, col, current_date, year, to_date, when
+
+# Create Spark session
+spark = SparkSession.builder.appName("EmployeeData").getOrCreate()
+
+# 1️⃣ Read CSV file
+df = spark.read.csv("employee_data.csv", header=True, inferSchema=True)
+df.show()
+
+# 2️⃣ Average salary per department
+avg_df = df.groupBy("Department").agg(avg("Salary").alias("Avg_Salary"))
+
+# Join to get each employee’s dept average
+df = df.join(avg_df, on="Department", how="left")
+
+# 3️⃣ Salary Increase %
+df = df.withColumn("Salary_Increase", ((col("Salary") - col("Avg_Salary")) / col("Avg_Salary")) * 100)
+
+# 4️⃣ Years with company
+df = df.withColumn("Hire_Date", to_date(col("Hire_Date"), "yyyy-MM-dd"))
+df = df.withColumn("YearsWithCompany", year(current_date()) - year(col("Hire_Date")))
+
+# 5️⃣ Salary Category
+df = df.withColumn("Salary_Category",
+    when(col("Salary") < 40000, "Low")
+    .when((col("Salary") >= 40000) & (col("Salary") < 70000), "Medium")
+    .otherwise("High")
+)
+
+df.show()
+
+spark.stop()
