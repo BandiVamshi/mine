@@ -1,0 +1,99 @@
+1. Hive Datastore Operations
+-- 1. Create a datastore (database)
+CREATE DATABASE IF NOT EXISTS my_datastore;
+
+-- 2. List all datastores
+SHOW DATABASES;
+
+-- 3. Switch datastore
+USE my_datastore;
+
+-- 4. View current datastore
+SELECT current_database();
+
+-- 5. Drop a datastore
+DROP DATABASE IF EXISTS my_datastore CASCADE;
+
+2. Hive Tables
+-- Sales Order Table
+CREATE TABLE sales_order (
+    order_id INT,
+    customer_id INT,
+    product_id INT,
+    order_date TIMESTAMP,
+    order_amount DOUBLE,
+    quantity INT,
+    discount DOUBLE,
+    tax DOUBLE,
+    total_amount DOUBLE
+) PRIMARY KEY (order_id);
+
+-- Product Table
+CREATE TABLE product (
+    product_id INT,
+    product_name STRING,
+    category STRING,
+    price DOUBLE,
+    manufacturer STRING,
+    date_added TIMESTAMP
+) PRIMARY KEY (product_id);
+
+-- Customer Table (partitioned)
+CREATE TABLE customer (
+    customer_id INT,
+    customer_name STRING,
+    email STRING,
+    phone STRING,
+    address STRUCT<street: STRING, city: STRING, state: STRING, zip: INT>,
+    date_joined TIMESTAMP
+) PARTITIONED BY (country STRING, state STRING)
+PRIMARY KEY (customer_id);
+
+3. Hive Queries
+
+a) Total Sales Amount
+
+SELECT SUM(total_amount) AS total_sales FROM sales_order;
+
+
+b) Top N Products by Sales
+
+SELECT product_id, SUM(total_amount) AS sales
+FROM sales_order
+GROUP BY product_id
+ORDER BY sales DESC
+LIMIT 5;  -- Replace 5 with N
+
+
+c) Customer-wise Sales
+
+SELECT customer_id, SUM(total_amount) AS customer_sales
+FROM sales_order
+GROUP BY customer_id;
+
+
+d) Monthly Sales Trends
+
+SELECT DATE_FORMAT(order_date, 'yyyy-MM') AS month,
+       SUM(total_amount) AS monthly_sales
+FROM sales_order
+GROUP BY DATE_FORMAT(order_date, 'yyyy-MM')
+ORDER BY month;
+
+
+e) Product-wise Quantity Sold
+
+SELECT product_id, SUM(quantity) AS total_quantity
+FROM sales_order
+GROUP BY product_id;
+
+
+f) Highest-Priced Product in Each Category
+
+SELECT category, product_name, price
+FROM (
+    SELECT category, product_name, price,
+           ROW_NUMBER() OVER (PARTITION BY category ORDER BY price DESC) AS rn
+    FROM product
+) t
+WHERE rn = 1;
