@@ -1,99 +1,137 @@
-1. Hive Datastore Operations
--- 1. Create a datastore (database)
-CREATE DATABASE IF NOT EXISTS my_datastore;
+Task-5:
+1st half :
 
--- 2. List all datastores
+CREATE DATABASE salesdb;
 SHOW DATABASES;
-
--- 3. Switch datastore
-USE my_datastore;
-
--- 4. View current datastore
+USE salesdb;
 SELECT current_database();
 
--- 5. Drop a datastore
-DROP DATABASE IF EXISTS my_datastore CASCADE;
+2nd half:
 
-2. Hive Tables
--- Sales Order Table
-CREATE TABLE sales_order (
-    order_id INT,
-    customer_id INT,
-    product_id INT,
-    order_date TIMESTAMP,
-    order_amount DOUBLE,
-    quantity INT,
-    discount DOUBLE,
-    tax DOUBLE,
-    total_amount DOUBLE
-) PRIMARY KEY (order_id);
-
--- Product Table
-CREATE TABLE product (
-    product_id INT,
-    product_name STRING,
-    category STRING,
-    price DOUBLE,
-    manufacturer STRING,
-    date_added TIMESTAMP
-) PRIMARY KEY (product_id);
-
--- Customer Table (partitioned)
 CREATE TABLE customer (
-    customer_id INT,
-    customer_name STRING,
-    email STRING,
-    phone STRING,
-    address STRUCT<street: STRING, city: STRING, state: STRING, zip: INT>,
-    date_joined TIMESTAMP
-) PARTITIONED BY (country STRING, state STRING)
-PRIMARY KEY (customer_id);
-
-3. Hive Queries
-
-a) Total Sales Amount
-
-SELECT SUM(total_amount) AS total_sales FROM sales_order;
+  customer_id INT,
+  customer_name STRING,
+  email STRING,
+  phone STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
 
 
-b) Top N Products by Sales
-
-SELECT product_id, SUM(total_amount) AS sales
-FROM sales_order
-GROUP BY product_id
-ORDER BY sales DESC
-LIMIT 5;  -- Replace 5 with N
-
-
-c) Customer-wise Sales
-
-SELECT customer_id, SUM(total_amount) AS customer_sales
-FROM sales_order
-GROUP BY customer_id;
+CREATE TABLE product (
+  product_id INT,
+  product_name STRING,
+  category STRING,
+  price DOUBLE
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
 
 
-d) Monthly Sales Trends
+CREATE TABLE sales_order (
+  order_id INT,
+  customer_id INT,
+  product_id INT,
+  order_date TIMESTAMP,
+  order_amount DOUBLE,
+  quantity INT,
+  total_amount DOUBLE
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
 
-SELECT DATE_FORMAT(order_date, 'yyyy-MM') AS month,
+
+gedit customer.csv
+
+1,John Doe,john@example.com,9876543210
+2,Alice Smith,alice@example.com,9876543220
+3,Ravi Kumar,ravi@example.com,9876543230
+
+
+gedit product.csv
+
+101,Laptop,Electronics,50000
+102,Mobile,Electronics,20000
+103,Table,Home,8000
+
+gedit sales_order.csv
+
+
+1001,1,101,2024-05-10 10:00:00,50000,1,49500
+1002,2,102,2024-05-12 11:00:00,40000,2,38800
+1003,3,103,2024-06-01 12:00:00,16000,2,15700
+1004,1,102,2024-06-15 14:00:00,20000,1,19800
+
+
+
+LOAD DATA local INPATH '/home/cloudera/customer.csv' INTO TABLE customer;
+LOAD DATA local INPATH '/home/cloudera/product.csv' INTO TABLE product;
+LOAD DATA local INPATH '/home/cloudera/sales_order.csv' INTO TABLE sales_order;
+
+
+a)SELECT SUM(total_amount) AS total_sales_amount
+FROM sales_order;
+o/p:123800.0
+
+
+
+b)SELECT p.product_name,SUM(s.total_amount) AS total_sales FROM sales_order s JOIN product p ON s.product_id = p.product_id GROUP BY p.product_name ORDER BY total_sales DESC
+  LIMIT 2;
+  
+  o/p:Mobile	58600.0
+Laptop	49500.0
+
+  
+c)
+SELECT c.customer_name,
+       SUM(s.total_amount) AS total_sales
+FROM sales_order s
+JOIN customer c ON s.customer_id = c.customer_id
+GROUP BY c.customer_name;
+o/p:Alice Smith	38800.0
+John Doe	69300.0
+Ravi Kumar	15700.0
+
+
+
+
+d)SELECT date_format(order_date, 'yyyy-MM') AS month,
        SUM(total_amount) AS monthly_sales
 FROM sales_order
-GROUP BY DATE_FORMAT(order_date, 'yyyy-MM')
+GROUP BY date_format(order_date, 'yyyy-MM')
 ORDER BY month;
 
-
-e) Product-wise Quantity Sold
-
-SELECT product_id, SUM(quantity) AS total_quantity
-FROM sales_order
-GROUP BY product_id;
+o/p:2024-05	88300.0
+2024-06	35500.0
 
 
-f) Highest-Priced Product in Each Category
 
-SELECT category, product_name, price
-FROM (
-    SELECT category, product_name, price,
-           ROW_NUMBER() OVER (PARTITION BY category ORDER BY price DESC) AS rn
+e) SELECT p.product_name,
+       SUM(s.quantity) AS total_quantity
+FROM sales_order s
+JOIN product p ON s.product_id = p.product_id
+GROUP BY p.product_name;
+
+o/p:
+Laptop	1
+Mobile	3
+
+
+f)
+SELECT p.category,
+       p.product_name,
+       p.price AS highest_price
+FROM product p
+JOIN (
+    SELECT category, MAX(price) AS max_price
     FROM product
-) t
-WHERE rn = 1;
+    GROUP BY category
+) m
+ON p.category = m.category AND p.price = m.max_price;
+
+
+o/p:Electronics	Laptop	50000.0
+Home	Table	8000.0
