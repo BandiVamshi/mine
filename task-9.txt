@@ -1,37 +1,31 @@
-!pip install pyspark
-
 from pyspark import SparkContext
+sc = SparkContext("local", "EmployeeRDD")
 
-# ✅ Safe initialization
-sc = SparkContext.getOrCreate()
+# a) Load the Dataset into an RDD
+rdd = sc.textFile("employees.csv")
 
-# a) Load dataset into RDD
-data = [
-    (1, "Alice", "HR", 50000, 2012),
-    (2, "Bob", "IT", 60000, 2016),
-    (3, "Charlie", "Finance", 55000, 2014),
-    (4, "David", "IT", 65000, 2013)
-]
-rdd = sc.parallelize(data)
+# Skip header (if your CSV has column names)
+header = rdd.first()
+data = rdd.filter(lambda x: x != header)
 
-# b) Count records
-print("Total Employees:", rdd.count())
+# Split each line by comma
+data = data.map(lambda x: x.split(","))
+
+# b) Count the number of records
+print("Total Records:", data.count())
 
 # c) Filter employees who joined after 2014
-filtered = rdd.filter(lambda x: x[4] <= 2014)
+filtered = data.filter(lambda x: int(x[4]) > 2014)
+print("Employees joined after 2014:", filtered.collect())
 
-# d) Map to employee names
-names = filtered.map(lambda x: x[1])
-print("Employees joined on/before 2014:", names.collect())
+# d) Map to get only employee names
+names = data.map(lambda x: x[1])
+print("Employee Names:", names.collect())
 
 # e) Average salary per department
-dept_salary = rdd.map(lambda x: (x[2], (x[3], 1))) \
-                 .reduceByKey(lambda a, b: (a[0]+b[0], a[1]+b[1])) \
-                 .mapValues(lambda x: x[0]/x[1])
-print("Average Salary by Department:", dept_salary.collect())
+dept_avg = data.map(lambda x: (x[2], (float(x[3]), 1))) \
+               .reduceByKey(lambda a,b:(a[0]+b[0], a[1]+b[1])) \
+               .mapValues(lambda x: x[0]/x[1])
+print("Average Salary by Department:", dept_avg.collect())
 
 sc.stop()
-
-
-
-https://colab.research.google.com/drive/1_BnMz_iUenCEn_hD3MVqDKPtNqqENcqQ?usp=sharing
